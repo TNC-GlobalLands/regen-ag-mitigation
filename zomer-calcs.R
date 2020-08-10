@@ -9,31 +9,49 @@ library(viridis)
 #### SET WORKING DIRECTORY ####
 require(funr)
 setwd(funr::get_script_path())
-#path <- "~/Box Sync/Work/The Nature Conservancy/Global Soils/Regenerative Foodscapes/Mitigation Mapping/"
-#setwd(path)
+# path <- "~/Box Sync/Work/The Nature Conservancy/Global Soils/Regenerative Foodscapes/Mitigation Mapping/code/"
+# setwd(path)
 
 # Read in raster data
-hi <- raster("../data/increase_per_grid_cell-high/tc_dif_hi.tif")
 med <- raster("../data/increase_per_grid_cell-medium/tc_dif_me.tif")
 
 # Read in shapefile data
-countries <- st_read("data/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp")
+countries <- st_read("../data/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp")
 
-# Convert from tonnes x 100 per ha to tonnes. 6.25 is # of ha per 250m grid cell
-hi <- hi * .0625
-med <- med *.0625
+# Print the range of the raw data
+med <- setMinMax(med)
+print("Range of the input raster: ")
+med
+
+# # Convert from tons x 100 per ha to tons per year
+# # tonnes (x100) / ha -> tonnes per ha
+# med <- med / 100
+# # tonnes / ha -> tonnes per ha for 75% of the area
+# med <- med * 1.33
+# # Get gonnes of carbon per grid cell
+# med <- med * 6.25
+# # Per year
+# med <- med / 20
+
+# All calcs in one number to speed up steps
+med <- med * 0.0042
 
 # Calculate high and medium SOC sequestration for each country
-countries$hiSOC <- exact_extract(hi, countries, 'sum')
 countries$medSOC <- exact_extract(med, countries, 'sum')
 
+# Convert to Tg: 1000000 tonnes per yr (Tg)
+countries$medSOC <- countries$medSOC/1000000
+
+print("Tonnes per year at country level (Tg): ")
+summary(countried$medSOC)
+
 # Plot data
-# ggplot() +
-#   geom_sf(data = countries, size=0, aes(fill = hiSOC)) +
-#   scale_fill_viridis() + theme_bw()
-# ggplot() +
-#   geom_sf(data = countries, size=0, aes(fill = medSOC)) +
-#   scale_fill_viridis() + theme_bw()
+plot <- ggplot() + 
+  geom_sf(data = countries, size=0, aes(fill = medSOC)) + 
+  scale_fill_viridis() + theme_bw()
+
+pdf("../figures/medSOC.pdf")
+print(plot)     # Plot 1 --> in the first page of PDF
 
 # Drop unneeded data
 drops <- c("featurecla","scalerank","LABELRANK","ADM0_DIF","LEVEL","GEOU_DIF","SU_DIF","BRK_DIFF","BRK_GROUP",
@@ -45,4 +63,4 @@ drops <- c("featurecla","scalerank","LABELRANK","ADM0_DIF","LEVEL","GEOU_DIF","S
 countries <- countries[ , !(names(countries) %in% drops)]
 
 # Write data
-st_write(countries, "SOCtables.csv", layer_options = "GEOMETRY=AS_XY")
+st_write(countries, "../data/conAg_export.csv")

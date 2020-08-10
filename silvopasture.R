@@ -1,5 +1,6 @@
 library(ggplot2)
 library(tidyverse)
+library(readxl)
 library(sf)
 library(viridis)
 
@@ -33,21 +34,57 @@ data <- full_join(lulc,ncsmapper)
 # Calculate silvopasture potential
 data <- data %>% 
   mutate(grassland_seq = (Value/100) * as.numeric(Reforestation), # Multiple reforestation by fraction of grassland
-         silvopasture = grassland_seq / 2) # Call half of that reforestation and half silvopasture
+         silvopasture = grassland_seq / 2, # Call half of that reforestation and half silvopasture
+         grassland_seq_CE = (Value/100) * as.numeric(`Cost-effective Reforestation`),
+         silvopasture_CE = grassland_seq_CE / 2
+  )
 
 # Join to spatial data
 names(data)[1] <- "ADM0_A3"
 countries <- right_join(countries, data)
 
 # Visualize data
+countries <- cbind(countries, st_coordinates(st_centroid(countries)))
+
+countries <- countries %>%
+  mutate(silvopasture = round(silvopasture, 1))
+
 # All data
 ggplot() +
   geom_sf(data = countries, size=0, aes(fill = silvopasture)) +
-  scale_fill_viridis() + theme_bw()
-
+  geom_text(data = countries, aes(X,Y,label = silvopasture), size = 1,color='white') +
+  xlab("") + ylab("") +
+  scale_fill_viridis(name = "Silvopasture\nTg C yr-1") + theme_bw()
 # Without China
 ggplot() +
   geom_sf(data = countries %>%
             filter(ADM0_A3 != 'CHN'), size=0, aes(fill = silvopasture)) +
-  scale_fill_viridis() + theme_bw()
+  geom_text(data = countries, aes(X,Y,label = silvopasture), size = 1,color='white') +
+  xlab("") + ylab("") +
+  scale_fill_viridis(name = "Silvopasture\nTg C yr-1") + theme_bw()
+# All CE data
+ggplot() +
+  geom_sf(data = countries, size=0, aes(fill = silvopasture_CE)) +
+  geom_text(data = countries, aes(X,Y,label = silvopasture), size = 1,color='white') +
+  xlab("") + ylab("") +
+  scale_fill_viridis(name = "Silvopasture\nTg C yr-1\nat $100/ton") + theme_bw()
+# CE Without China
+ggplot() +
+  geom_sf(data = countries %>%
+            filter(ADM0_A3 != 'CHN'), size=0, aes(fill = silvopasture_CE)) +
+  geom_text(data = countries, aes(X,Y,label = silvopasture), size = 1,color='white') +
+  xlab("") + ylab("") +
+  scale_fill_viridis(name = "Silvopasture\nTg C yr-1\nat $100/ton") + theme_bw()
 
+
+# Drop unneeded data
+drops <- c("featurecla","scalerank","LABELRANK","ADM0_DIF","LEVEL","GEOU_DIF","SU_DIF","BRK_DIFF","BRK_GROUP",
+           "FORMAL_FR","MAPCOLOR7","MAPCOLOR8","MAPCOLOR9","MAPCOLOR13","WIKIPEDIA","WOE_ID","WOE_ID_EH","WOE_NOTE",
+           "ADM0_A3_UN","ADM0_A3_WB","NAME_LEN","LONG_LEN","ABBREV_LEN","TINY","HOMEPART","MIN_ZOOM","MIN_LABEL",
+           "NE_ID","WIKIDATAID","NAME_AR","NAME_BN","NAME_DE","NAME_EN","NAME_ES","NAME_FR","NAME_EL","NAME_HI","NAME_HU",
+           "NAME_ID","NAME_IT","NAME_JA","NAME_KO","NAME_NL","NAME_PL","NAME_PT","NAME_RU","NAME_SV","NAME_TR","NAME_VI",
+           "NAME_ZH")
+countries <- countries[ , !(names(countries) %in% drops)]
+
+# Write data
+st_write(countries, "silvopasture-export.csv")
