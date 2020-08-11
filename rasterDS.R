@@ -3,6 +3,10 @@ library(raster)
 library(rgdal)
 library(spatialEco)
 
+#### SET WORKING DIRECTORY ####
+require(funr)
+setwd(funr::get_script_path())
+
 # Read in raster SOC data
 med <- raster("../data/04Increase/soc_dif_me.tif")
 

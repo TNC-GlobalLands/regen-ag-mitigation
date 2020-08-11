@@ -5,6 +5,7 @@ library(sf)
 library(ggplot2)
 library(exactextractr)
 library(viridis)
+library(lwgeom)
 
 #### SET WORKING DIRECTORY ####
 require(funr)
@@ -21,19 +22,43 @@ countries <- st_read("../data/ne_110m_admin_0_countries/ne_110m_admin_0_countrie
 # Convert from tons x 100 per ha to tons per grid cell per year (med/100*6.25/20)
 med <- med * 0.003125
 medAdopt75 <- med * .75
+medAdopt75CE <- medAdopt75 * .9
 
 # Calculate medium SOC sequestration for each country
 countries$medSOC <- exact_extract(med, countries, 'sum')
 countries$medSOCAdopt75 <- exact_extract(medAdopt75, countries, 'sum')
+countries$medSOCAdopt75CE <- exact_extract(medAdopt75CE, countries, 'sum')
 
 # Convert to Tg: 1000000 tonnes per yr (Tg)
 countries$medSOC <- countries$medSOC/1000000
 countries$medSOCAdopt75 <- countries$medSOCAdopt75/1000000
+countries$medSOCAdopt75CE <- countries$medSOCAdopt75CE/1000000
+
+# Calculate area of polygons
+countries$area <- as.numeric(st_area(countries)/100000000000)
+countries$SOCperArea <- countries$medSOCAdopt75/countries$area
 
 # Plot data
-plot <- ggplot() + 
-  geom_sf(data = countries, size=0, aes(fill = medSOC)) + 
-  scale_fill_viridis() + theme_bw()
+ggplot() + 
+  geom_sf(data = countries, size=0, aes(fill = medSOCAdopt75)) + 
+  scale_fill_viridis(name="Soil carbon\nTg C yr-1") + theme_bw() +
+  theme(
+    legend.position="bottom"
+  )
+ggplot() + 
+  geom_sf(data = countries, size=0, aes(fill = medSOCAdopt75CE)) + 
+  scale_fill_viridis(name="Soil carbon\nTg C yr-1\nat $100") + theme_bw() +
+  theme(
+    legend.position="bottom"
+  )
+ggplot() + 
+  geom_sf(data = countries, size=0, aes(fill = SOCperArea)) + 
+  ggtitle("Conservation Agriculture") +
+  scale_fill_viridis(name="Tg C per yr\nper 100000 sq km") + theme_bw() +
+  theme(
+    legend.position="bottom"
+  )
+
 
 # Drop unneeded data
 drops <- c("featurecla","scalerank","LABELRANK","ADM0_DIF","LEVEL","GEOU_DIF","SU_DIF","BRK_DIFF","BRK_GROUP",

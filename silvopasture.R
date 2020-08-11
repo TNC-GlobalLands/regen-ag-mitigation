@@ -3,6 +3,7 @@ library(tidyverse)
 library(readxl)
 library(sf)
 library(viridis)
+library(lwgeom)
 
 # Reading working director
 # require(funr)
@@ -44,24 +45,33 @@ names(data)[1] <- "ADM0_A3"
 countries <- right_join(countries, data)
 
 # Visualize data
+countries$area <- as.numeric(st_area(countries)/100000000000)
+countries$silvopastArea <- countries$silvopasture/countries$area
+
 countries <- cbind(countries, st_coordinates(st_centroid(countries)))
 
 countries <- countries %>%
-  mutate(silvopasture = round(silvopasture, 1))
+  mutate(silvopasture = round(silvopasture, 1),
+         silvopastArea = round(silvopastArea, 1))
 
 # All data
 ggplot() +
   geom_sf(data = countries, size=0, aes(fill = silvopasture)) +
   geom_text(data = countries, aes(X,Y,label = silvopasture), size = 1,color='white') +
   xlab("") + ylab("") +
-  scale_fill_viridis(name = "Silvopasture\nTg C yr-1") + theme_bw()
-# Without China
+  scale_fill_viridis(name = "Silvopasture\nTg C yr-1") + theme_bw() + theme(legend.position="bottom")
+ggplot() +
+  geom_sf(data = countries, size=0, aes(fill = log(silvopastArea))) +
+  xlab("") + ylab("") +
+  scale_fill_viridis(name = "Silvopasture\nTg C yr-1") + theme_bw() + theme(legend.position="bottom")
 ggplot() +
   geom_sf(data = countries %>%
-            filter(ADM0_A3 != 'CHN'), size=0, aes(fill = silvopasture)) +
-  geom_text(data = countries, aes(X,Y,label = silvopasture), size = 1,color='white') +
+            filter(ADM0_A3 != 'GBR') %>%
+            filter(ADM0_A3 != 'IRL') %>%
+            filter(ADM0_A3 != 'HTI'), size=0, aes(fill = silvopastArea)) +
   xlab("") + ylab("") +
-  scale_fill_viridis(name = "Silvopasture\nTg C yr-1") + theme_bw()
+  scale_fill_viridis(name = "Silvopasture\nTg C per yr\nper 100000 sq km") + theme_bw() + theme(legend.position="bottom")
+
 # All CE data
 ggplot() +
   geom_sf(data = countries, size=0, aes(fill = silvopasture_CE)) +
